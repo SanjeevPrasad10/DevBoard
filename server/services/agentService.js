@@ -1,4 +1,4 @@
-﻿const ws = require('ws');
+const ws = require('ws');
 globalThis.WebSocket = ws;
 
 const { GoogleGenAI } = require('@google/genai');
@@ -175,7 +175,7 @@ async function executeTool(name, args) {
       await safeRedisSet(cacheKey, JSON.stringify(data));
       return { source: 'database', resources: data };
     }
-
+  
     case 'addResource': {
       const { data, error } = await supabase.from('resources').insert([args]).select();
       if (error) throw error;

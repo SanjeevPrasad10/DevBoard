@@ -52,10 +52,10 @@ const ResourceCard = ({
   return (
     <>
       <div
-        className={`group p-4 sm:p-5 rounded-2xl border transition-all duration-200 ${
+        className={`group p-4 sm:p-5 rounded-2xl border transition-all duration-300 ${
           isCompleted
-            ? "bg-slate-800/40 border-emerald-500/20 hover:border-emerald-500/40"
-            : "bg-slate-800/80 border-slate-700/70 hover:border-indigo-500/50 hover:shadow-lg hover:shadow-indigo-500/5"
+            ? "bg-slate-800/40 border-emerald-500/20 hover:border-emerald-500/40 hover:-translate-y-0.5"
+            : "bg-slate-800/80 border-slate-700/70 hover:border-indigo-500/50 hover:shadow-xl hover:shadow-indigo-500/10 hover:-translate-y-0.5"
         }`}
       >
         <div className="flex items-start justify-between gap-4">
