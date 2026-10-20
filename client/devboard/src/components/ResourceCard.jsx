@@ -5,8 +5,11 @@ const ResourceCard = ({
   item,
   onToggleStatus,
   onImageUpdated,
+  onNotesUpdated,
 }) => {
   const [showNotes, setShowNotes] = useState(false);
+  const [isEditingNotes, setIsEditingNotes] = useState(false);
+  const [editableNotes, setEditableNotes] = useState(item.notes || "");
   const [isUploading, setIsUploading] = useState(false);
   const [showImageZoom, setShowImageZoom] = useState(false);
   const fileInputRef = useRef(null);
@@ -19,20 +22,34 @@ const ResourceCard = ({
   const getDifficultyBadge = (difficulty) => {
     const diff = (difficulty || "Medium").toLowerCase();
     if (diff === "easy") {
-      return "bg-emerald-50 text-emerald-700 border-emerald-200";
+      return {
+        bg: "bg-emerald-50 text-emerald-700 border-emerald-200/80",
+        dot: "bg-emerald-500",
+        label: "Easy",
+      };
     }
     if (diff === "hard") {
-      return "bg-rose-50 text-rose-700 border-rose-200";
+      return {
+        bg: "bg-rose-50 text-rose-700 border-rose-200/80",
+        dot: "bg-rose-500",
+        label: "Hard",
+      };
     }
-    return "bg-amber-50 text-amber-700 border-amber-200";
+    return {
+      bg: "bg-amber-50 text-amber-700 border-amber-200/80",
+      dot: "bg-amber-500",
+      label: "Medium",
+    };
   };
+
+  const diffStyle = getDifficultyBadge(item.difficulty);
 
   const handleFileChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     if (file.size > 5 * 1024 * 1024) {
-      alert("File size must be under 5MB.");
+      alert("Please upload an image smaller than 5MB.");
       return;
     }
 
@@ -49,31 +66,41 @@ const ResourceCard = ({
     }
   };
 
+  const handleSaveNotes = () => {
+    setIsEditingNotes(false);
+    if (onNotesUpdated) {
+      onNotesUpdated(item.id, editableNotes);
+    }
+  };
+
+  // Extract O(n) or complexity hints if present in notes
+  const complexityMatches = (item.notes || "").match(/O\([^)]+\)/g);
+
   return (
     <>
       <div
-        className={`group p-4 rounded-xl border transition-all ${
+        className={`group p-4 sm:p-5 rounded-2xl border transition-all duration-200 ${
           isCompleted
-            ? "bg-slate-50/60 border-slate-200 text-slate-600"
-            : "bg-white border-slate-200 hover:border-slate-300 shadow-2xs"
+            ? "bg-slate-50/60 border-slate-200/80 shadow-2xs"
+            : "bg-white border-slate-200 hover:border-slate-300 shadow-[0_1px_3px_rgba(0,0,0,0.03)] hover:shadow-[0_4px_14px_rgba(0,0,0,0.05)]"
         }`}
       >
-        <div className="flex items-start justify-between gap-3">
-          {/* Status Checkbox & Title */}
-          <div className="flex items-start gap-3 flex-1 min-w-0">
+        <div className="flex items-start justify-between gap-3.5">
+          {/* Checkbox & Details */}
+          <div className="flex items-start gap-3.5 flex-1 min-w-0">
             <button
               type="button"
               onClick={() => onToggleStatus(item)}
-              className={`mt-0.5 w-4 h-4 rounded flex items-center justify-center border transition-colors cursor-pointer shrink-0 ${
+              className={`mt-0.5 w-5 h-5 rounded-lg flex items-center justify-center border transition-all cursor-pointer shrink-0 ${
                 isCompleted
-                  ? "bg-emerald-600 border-emerald-600 text-white"
-                  : "border-slate-300 hover:border-indigo-600 bg-white"
+                  ? "bg-emerald-600 border-emerald-600 text-white shadow-xs scale-105"
+                  : "border-slate-300 hover:border-indigo-600 bg-white shadow-2xs"
               }`}
-              title={isCompleted ? "Mark as Pending" : "Mark as Completed"}
+              title={isCompleted ? "Mark as In Progress" : "Mark as Solved"}
             >
               {isCompleted && (
                 <svg
-                  className="w-3 h-3 text-white stroke-[3]"
+                  className="w-3.5 h-3.5 text-white stroke-[3]"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -88,57 +115,62 @@ const ResourceCard = ({
             </button>
 
             <div className="flex-1 min-w-0">
-              <div className="flex flex-wrap items-center gap-2 mb-1">
+              {/* Header tags: Title, Difficulty, Status */}
+              <div className="flex flex-wrap items-center gap-2 mb-1.5">
                 <h4
-                  className={`text-sm font-semibold tracking-tight truncate ${
+                  className={`text-sm sm:text-base font-bold tracking-tight truncate ${
                     isCompleted
-                      ? "line-through text-slate-400"
-                      : "text-slate-900"
+                      ? "line-through text-slate-400 font-medium"
+                      : "text-slate-900 group-hover:text-indigo-600 transition-colors"
                   }`}
                 >
-                  {item.title || "Untitled Resource"}
+                  {item.title || "Untitled Problem"}
                 </h4>
 
                 {/* Difficulty Pill */}
-                {item.difficulty && (
-                  <span
-                    className={`text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded border ${getDifficultyBadge(
-                      item.difficulty
-                    )}`}
-                  >
-                    {item.difficulty}
-                  </span>
-                )}
-
-                {/* Status Badge */}
                 <span
-                  className={`text-[10px] font-medium px-2 py-0.5 rounded border ${
+                  className={`text-[11px] font-semibold px-2 py-0.5 rounded-md border flex items-center gap-1.5 ${diffStyle.bg}`}
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full ${diffStyle.dot}`} />
+                  <span>{diffStyle.label}</span>
+                </span>
+
+                {/* Status Pill */}
+                <span
+                  className={`text-[11px] font-medium px-2 py-0.5 rounded-md border ${
                     isCompleted
                       ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                       : "bg-slate-100 text-slate-600 border-slate-200"
                   }`}
                 >
-                  {isCompleted ? "Completed" : "Learning"}
+                  {isCompleted ? "✓ Solved" : "In Progress"}
                 </span>
+
+                {/* Complexity preview badge if detected */}
+                {complexityMatches && complexityMatches.length > 0 && (
+                  <span className="hidden sm:inline-flex text-[10px] font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded border border-slate-200/70">
+                    {complexityMatches.join(" • ")}
+                  </span>
+                )}
               </div>
 
               {/* Action Toolbar */}
-              <div className="flex flex-wrap items-center gap-3 mt-1.5 text-xs">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-2 text-xs">
                 {/* External Link */}
                 {item.url && (
                   <a
                     href={item.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-indigo-600 hover:text-indigo-800 font-medium hover:underline"
+                    className="inline-flex items-center gap-1.5 font-semibold text-indigo-600 hover:text-indigo-800 bg-indigo-50/70 hover:bg-indigo-100/70 border border-indigo-200/70 px-2.5 py-1 rounded-lg transition-colors"
                   >
-                    <span>Open Resource</span>
+                    <span>Solve / Open</span>
                     <svg
-                      className="w-3 h-3"
+                      className="w-3 h-3 text-indigo-500"
                       fill="none"
                       viewBox="0 0 24 24"
                       stroke="currentColor"
-                      strokeWidth={2}
+                      strokeWidth={2.2}
                     >
                       <path
                         strokeLinecap="round"
@@ -149,29 +181,36 @@ const ResourceCard = ({
                   </a>
                 )}
 
-                {/* Notes Toggle */}
-                {item.notes && (
-                  <button
-                    type="button"
-                    onClick={() => setShowNotes(!showNotes)}
-                    className="text-slate-500 hover:text-slate-800 cursor-pointer"
-                  >
-                    {showNotes ? "Hide Notes" : "View Notes"}
-                  </button>
-                )}
+                {/* Notes Toggle Button */}
+                <button
+                  type="button"
+                  onClick={() => setShowNotes(!showNotes)}
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-medium transition-colors cursor-pointer ${
+                    showNotes
+                      ? "bg-slate-900 text-white border-slate-900 shadow-2xs"
+                      : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
+                  }`}
+                >
+                  <span>📝</span>
+                  <span>{showNotes ? "Hide Notes" : item.notes ? "View Notes" : "+ Add Note"}</span>
+                </button>
 
-                {/* Image Upload Trigger */}
+                {/* Diagram Upload Button */}
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={isUploading}
-                  className="text-slate-400 hover:text-slate-700 disabled:opacity-50 cursor-pointer"
+                  className="inline-flex items-center gap-1 text-slate-500 hover:text-slate-800 border border-slate-200 bg-white hover:bg-slate-50 px-2.5 py-1 rounded-lg transition-colors disabled:opacity-50 cursor-pointer"
+                  title="Upload problem screenshot or system design diagram"
                 >
-                  {isUploading
-                    ? "Uploading..."
-                    : item.image_url
-                    ? "Change Diagram"
-                    : "Attach Diagram"}
+                  <span>🖼️</span>
+                  <span>
+                    {isUploading
+                      ? "Uploading..."
+                      : item.image_url
+                      ? "Change Diagram"
+                      : "Attach Diagram"}
+                  </span>
                 </button>
                 <input
                   ref={fileInputRef}
@@ -191,45 +230,91 @@ const ResourceCard = ({
                 src={item.image_url}
                 alt={item.title || "Resource preview"}
                 onClick={() => setShowImageZoom(true)}
-                className="w-14 h-14 object-cover rounded-lg border border-slate-200 hover:border-indigo-400 cursor-pointer transition shadow-2xs"
+                className="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded-xl border border-slate-200 hover:border-indigo-400 cursor-pointer hover:scale-102 transition shadow-sm"
               />
             </div>
           )}
         </div>
 
-        {/* Notes Container */}
-        {showNotes && item.notes && (
-          <div className="mt-3 pt-2.5 border-t border-slate-100 text-xs text-slate-700 bg-slate-50 p-3 rounded-lg leading-relaxed whitespace-pre-wrap">
-            <span className="font-semibold text-slate-800 block mb-1">
-              Key Notes &amp; Observations:
-            </span>
-            {item.notes}
+        {/* Collapsible Notes Section */}
+        {showNotes && (
+          <div className="mt-3.5 pt-3.5 border-t border-slate-100">
+            <div className="bg-slate-50/80 border border-slate-200/80 rounded-xl p-3.5 text-xs text-slate-700 leading-relaxed shadow-2xs">
+              <div className="flex items-center justify-between mb-2">
+                <span className="font-bold text-slate-800 tracking-tight flex items-center gap-1.5">
+                  <span>Takeaways &amp; Solution Strategy</span>
+                </span>
+                {!isEditingNotes && (
+                  <button
+                    onClick={() => setIsEditingNotes(true)}
+                    className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 cursor-pointer"
+                  >
+                    Edit Note
+                  </button>
+                )}
+              </div>
+
+              {isEditingNotes ? (
+                <div className="space-y-2">
+                  <textarea
+                    rows={4}
+                    value={editableNotes}
+                    onChange={(e) => setEditableNotes(e.target.value)}
+                    className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-indigo-500 font-sans resize-none"
+                    placeholder="Write key observations, edge cases, time/space complexity..."
+                  />
+                  <div className="flex justify-end gap-2">
+                    <button
+                      onClick={() => setIsEditingNotes(false)}
+                      className="px-2.5 py-1 text-xs text-slate-600 hover:bg-slate-200 rounded"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleSaveNotes}
+                      className="px-3 py-1 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded shadow-2xs"
+                    >
+                      Save Note
+                    </button>
+                  </div>
+                </div>
+              ) : item.notes ? (
+                <p className="whitespace-pre-wrap text-slate-700 font-normal">
+                  {item.notes}
+                </p>
+              ) : (
+                <p className="text-slate-400 italic">
+                  No notes recorded yet. Click &ldquo;Edit Note&rdquo; to add your approach and Big-O complexity!
+                </p>
+              )}
+            </div>
           </div>
         )}
       </div>
 
-      {/* Image Modal Preview */}
+      {/* Image Modal Preview (Zoom) */}
       {showImageZoom && item.image_url && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs cursor-zoom-out"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm cursor-zoom-out animate-in fade-in duration-150"
           onClick={() => setShowImageZoom(false)}
         >
           <div
-            className="relative max-w-3xl max-h-[90vh] bg-white border border-slate-200 rounded-xl p-3 overflow-hidden shadow-2xl"
+            className="relative max-w-4xl max-h-[90vh] bg-white border border-slate-200 rounded-2xl p-4 overflow-hidden shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <button
               onClick={() => setShowImageZoom(false)}
-              className="absolute top-2 right-2 z-10 w-7 h-7 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center hover:bg-slate-200 transition"
+              className="absolute top-3 right-3 z-10 w-8 h-8 rounded-full bg-slate-100 text-slate-700 flex items-center justify-center hover:bg-slate-200 transition"
+              title="Close Preview"
             >
               ✕
             </button>
             <img
               src={item.image_url}
               alt={item.title || "Zoomed preview"}
-              className="max-h-[80vh] w-auto mx-auto object-contain rounded-lg"
+              className="max-h-[80vh] w-auto mx-auto object-contain rounded-xl"
             />
-            <p className="text-center text-xs text-slate-500 pt-2">
+            <p className="text-center text-xs font-medium text-slate-600 pt-3">
               {item.title}
             </p>
           </div>

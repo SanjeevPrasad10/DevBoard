@@ -3,49 +3,62 @@ import { useState, useRef, useEffect } from "react";
 const getClientSideAnswer = (query) => {
   const q = query.toLowerCase();
 
-  if (q.includes("dsa") || q.includes("algorithm") || q.includes("leetcode")) {
-    return `For Data Structures & Algorithms, prioritize mastery of recurring patterns over rote memorization:
-1. **Arrays & Two Pointers**: Start with Two Sum and Sliding Window problems (e.g., Longest Substring Without Repeating Characters).
-2. **Graphs & Trees**: Master recursive DFS for tree inversions and BFS for shortest path or level-order traversals.
-3. **Dynamic Programming**: Break problems into subproblems. Define state \`dp[i]\`, transition relations, and base cases.
-4. **Time & Space**: Always analyze Big-O complexities before coding in interviews.`;
+  if (q.includes("dsa") || q.includes("pattern") || q.includes("leetcode") || q.includes("algorithm")) {
+    return `### 💡 Core DSA Patterns for Technical Interviews
+
+1. **Two Pointers & Sliding Window**
+   - *When to use*: Substring problems, sorted pair searches, subarray maximums.
+   - *Example*: \`Two Sum II\` (pointers at edges) vs \`Longest Substring Without Repeating Characters\` (expand right, contract left).
+
+2. **Trees & Graph Traversals**
+   - *When to use*: Hierarchical data, shortest path, connected components.
+   - *Rule of thumb*: BFS with a Queue for shortest path; DFS with recursion for depth, topological sort, and path validation.
+
+3. **Dynamic Programming**
+   - *Steps*: 1. Identify optimal substructure. 2. Define state \`dp[i]\`. 3. Write transition formula. 4. Determine base cases.
+   - *Optimization*: Many 1D/2D DP problems only need the last 1-2 state values (optimizing space from \`O(N)\` to \`O(1)\`).`;
   }
 
   if (q.includes("redis") || q.includes("cache")) {
-    return `**Redis Cache-Aside Pattern Overview**:
-1. **Read Path**: The application first checks Redis using a unique key (e.g. \`devboard:topics:id\`). If a cache hit occurs, it returns data in < 5ms.
-2. **Cache Miss**: If absent, query PostgreSQL (Supabase), write the result into Redis with a TTL (e.g. 1 hour), and return to client.
-3. **Write / Invalidation Path**: Whenever a resource is created, updated, or deleted, explicitly purge the affected Redis cache keys to prevent stale data.`;
+    return `### ⚡ Redis Cache-Aside Pattern Architecture
+
+1. **Read Path (Sub-5ms)**:
+   - Application queries Redis key (\`devboard:topics:id\`).
+   - **Cache HIT**: Return in < 5ms directly from memory.
+   - **Cache MISS**: Query PostgreSQL (Supabase), write response to Redis with TTL (e.g. 1 hour), and return.
+
+2. **Write / Invalidation Path**:
+   - When a resource is added or updated (\`POST /api/resources\`), immediately purge the affected Redis cache key.
+   - This prevents serving stale data while maintaining fast read throughput.`;
   }
 
-  if (q.includes("react") || q.includes("frontend")) {
-    return `**React 19 & Modern Frontend Best Practices**:
-- **Server Actions & useActionState**: Handle mutations directly without repetitive loading states or manual try/catch boilerplate.
-- **useOptimistic**: Provide immediate UI updates for checkmarks or comments before server confirmation.
-- **Performance**: Measure Core Web Vitals (LCP, INP, CLS). Prioritize critical above-the-fold assets and minimize long main-thread tasks.`;
+  if (q.includes("react") || q.includes("frontend") || q.includes("action")) {
+    return `### ⚛️ React 19 & Modern State Architecture
+
+- **Server Actions & useActionState**: Manage async form submissions natively without manual \`loading\` or \`error\` states.
+- **useOptimistic**: Render instantaneous UI checkmarks or problem status changes while background network requests complete.
+- **Core Web Vitals**:
+  - **LCP**: Inline critical CSS, prioritize hero images with \`fetchpriority="high"\`.
+  - **INP**: Break up long JavaScript execution using \`requestAnimationFrame\` or microtasks.`;
   }
 
-  if (q.includes("system design") || q.includes("rate limit") || q.includes("scale")) {
-    return `**System Design Essentials**:
-- **Rate Limiting**: Use the Token Bucket algorithm for burst tolerance, or Sliding Window Log with Redis ZSET for strict distributed windows.
-- **Message Queues**: Decouple synchronous API traffic from asynchronous worker jobs using Kafka or BullMQ.
-- **Database Optimization**: Ensure columns used in WHERE, JOIN, and ORDER BY clauses have appropriate indexes (B-Tree for standard lookups, GIN for text/JSONB).`;
+  if (q.includes("system design") || q.includes("rate limit") || q.includes("scale") || q.includes("mock")) {
+    return `### 🌐 System Design & Scalability Principles
+
+- **Rate Limiting**:
+  - *Token Bucket*: Best for handling bursts while maintaining steady consumption.
+  - *Distributed*: Use Redis Sorted Sets (\`ZSET\`) with current timestamp as score for atomic sliding window evaluation.
+- **Message Queues (Kafka / BullMQ)**:
+  - Decouple long-running tasks (e.g. report generation, image compression) from user-facing HTTP handlers.
+- **Database Sharding & Indexes**:
+  - Always index foreign keys and columns frequently used in \`WHERE\` and \`ORDER BY\` filters.`;
   }
 
-  if (q.includes("section") || q.includes("topic") || q.includes("what is in devboard")) {
-    return `DevBoard organizes learning into 4 core domains:
-1. **Data Structures & Algorithms** (Arrays, Two Pointers, Trees, Dynamic Programming)
-2. **Frontend Architecture** (React 19, Web Performance, Core Web Vitals)
-3. **Backend & Systems** (Node.js event loop, Redis caching, PostgreSQL indexes)
-4. **System Design & DevOps** (Distributed rate limiting, message queues, Docker)
+  return `### 🎯 Strategy Recommendation
 
-You can check off completed topics, write study notes, and attach architecture diagrams directly to cards!`;
-  }
-
-  return `Here are some recommendations based on your learning journey:
-- Consistency matters more than volume: solve 1-2 focused problems daily and document key takeaways.
-- Focus on explaining your thought process out loud—trade-offs between time vs space complexity are what interviewers evaluate most.
-- Explore the sections above to track your progress and mark topics as 'Completed'!`;
+- **Consistency**: Solving 1-2 problems daily with deep comprehension outperforms solving 20 problems without retention.
+- **Verbalize Trade-offs**: In interview settings, always state the brute-force time/space complexity first, then optimize.
+- **DevBoard Tracks**: Use the sections above to systematically cover DSA, Frontend, Backend, and System Design!`;
 };
 
 export default function AiCopilot() {
@@ -58,7 +71,7 @@ export default function AiCopilot() {
     return [
       {
         role: "assistant",
-        text: "Hi! I am your DevBoard Advisor. Ask me about DSA patterns, system design trade-offs, or how to organize your preparation roadmap.",
+        text: "👋 Hi! I am your **DevBoard Technical Coach**. I can help you analyze time complexities, master DSA patterns, or explain system design trade-offs. What are you working on today?",
       },
     ];
   });
@@ -120,7 +133,7 @@ export default function AiCopilot() {
         },
       ]);
     } catch {
-      // Offline fallback: intelligent client-side assistance
+      // Offline fallback: intelligent client-side technical coach
       const reply = getClientSideAnswer(text);
       setMessages((prev) => [
         ...prev,
@@ -135,9 +148,10 @@ export default function AiCopilot() {
   };
 
   const quickPrompts = [
-    "How to master DSA patterns?",
+    "Master DSA patterns",
     "Explain Redis cache-aside",
-    "What are React 19 Server Actions?",
+    "React 19 Server Actions",
+    "System design tips",
   ];
 
   return (
@@ -145,59 +159,70 @@ export default function AiCopilot() {
       {/* Floating Trigger Button */}
       <button
         onClick={() => setIsOpen((prev) => !prev)}
-        className="fixed bottom-5 right-5 z-40 flex items-center gap-2 px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-full shadow-md text-xs font-medium cursor-pointer transition"
+        className="fixed bottom-6 right-6 z-40 flex items-center gap-2.5 px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-full shadow-lg hover:shadow-xl transition-all cursor-pointer text-xs font-semibold group"
       >
-        <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-        <span>Copilot</span>
-        {isOpen && <span className="text-[10px] text-slate-400 ml-1">✕</span>}
+        <span className="w-2 h-2 rounded-full bg-emerald-400 group-hover:scale-110 transition-transform" />
+        <span>Study Copilot</span>
+        {isOpen ? (
+          <span className="text-[11px] text-slate-400 ml-1">✕</span>
+        ) : (
+          <span className="text-[10px] text-slate-400 font-mono bg-slate-800 px-1.5 py-0.5 rounded">
+            AI
+          </span>
+        )}
       </button>
 
       {/* Chat Drawer Window */}
       {isOpen && (
-        <div className="fixed bottom-16 right-5 z-50 w-[380px] max-w-[calc(100vw-2rem)] h-[520px] max-h-[calc(100vh-6rem)] bg-white border border-slate-200 rounded-2xl shadow-xl flex flex-col overflow-hidden animate-in fade-in duration-150">
+        <div className="fixed bottom-20 right-6 z-50 w-[400px] max-w-[calc(100vw-2rem)] h-[540px] max-h-[calc(100vh-7rem)] bg-white border border-slate-200 rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in duration-150">
           {/* Header */}
-          <div className="px-4 py-3 border-b border-slate-100 bg-white flex items-center justify-between">
-            <div>
-              <h3 className="font-semibold text-slate-900 text-xs">
-                DevBoard Copilot
-              </h3>
-              <p className="text-[11px] text-slate-400">
-                Roadmap &amp; Technical Advisor
-              </p>
+          <div className="px-4 py-3.5 border-b border-slate-100 bg-white flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-mono font-bold text-xs shadow-2xs">
+                &lt;C/&gt;
+              </div>
+              <div>
+                <h3 className="font-bold text-slate-900 text-xs">
+                  DevBoard Copilot
+                </h3>
+                <p className="text-[10px] text-slate-400">
+                  Technical Interview &amp; Roadmap Coach
+                </p>
+              </div>
             </div>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1.5">
               <button
                 onClick={() => {
                   const reset = [
                     {
                       role: "assistant",
-                      text: "Hi! I am your DevBoard Advisor. Ask me about DSA patterns, system design trade-offs, or how to organize your preparation roadmap.",
+                      text: "👋 Hi! I am your **DevBoard Technical Coach**. I can help you analyze time complexities, master DSA patterns, or explain system design trade-offs. What are you working on today?",
                     },
                   ];
                   setMessages(reset);
                   localStorage.removeItem("devboard_copilot_messages");
                 }}
-                className="text-slate-400 hover:text-slate-700 text-xs px-2 py-0.5 rounded"
-                title="Clear Chat"
+                className="text-slate-400 hover:text-slate-700 text-[11px] font-medium px-2 py-1 rounded hover:bg-slate-100 transition-colors"
+                title="Reset conversation"
               >
                 Clear
               </button>
               <button
                 onClick={() => setIsOpen(false)}
-                className="text-slate-400 hover:text-slate-700 text-xs p-1 rounded"
+                className="text-slate-400 hover:text-slate-700 text-xs p-1 rounded hover:bg-slate-100 transition-colors"
               >
                 ✕
               </button>
             </div>
           </div>
 
-          {/* Quick Prompts */}
+          {/* Quick Suggestion Chips */}
           <div className="px-3 py-2 bg-slate-50 border-b border-slate-100 flex gap-1.5 overflow-x-auto scrollbar-none">
             {quickPrompts.map((p, idx) => (
               <button
                 key={idx}
                 onClick={() => handleSend(p)}
-                className="shrink-0 text-[11px] bg-white text-slate-600 hover:text-slate-900 border border-slate-200 px-2.5 py-1 rounded-full cursor-pointer transition"
+                className="shrink-0 text-[11px] font-medium bg-white text-slate-700 hover:text-indigo-600 border border-slate-200 px-2.5 py-1 rounded-full cursor-pointer hover:border-indigo-300 transition-colors"
               >
                 {p}
               </button>
@@ -205,7 +230,7 @@ export default function AiCopilot() {
           </div>
 
           {/* Messages Area */}
-          <div className="flex-1 p-3.5 space-y-3 overflow-y-auto">
+          <div className="flex-1 p-4 space-y-3.5 overflow-y-auto">
             {messages.map((m, idx) => {
               const isUser = m.role === "user";
               return (
@@ -214,10 +239,10 @@ export default function AiCopilot() {
                   className={`flex ${isUser ? "justify-end" : "justify-start"}`}
                 >
                   <div
-                    className={`max-w-[85%] rounded-xl px-3 py-2 text-xs leading-relaxed whitespace-pre-wrap ${
+                    className={`max-w-[88%] rounded-2xl px-3.5 py-2.5 text-xs leading-relaxed whitespace-pre-wrap ${
                       isUser
-                        ? "bg-indigo-600 text-white"
-                        : "bg-slate-100 text-slate-800 border border-slate-200/80"
+                        ? "bg-indigo-600 text-white shadow-2xs font-medium"
+                        : "bg-slate-50 text-slate-800 border border-slate-200/90 shadow-2xs"
                     }`}
                   >
                     {m.text}
@@ -227,8 +252,8 @@ export default function AiCopilot() {
             })}
             {loading && (
               <div className="flex justify-start">
-                <div className="bg-slate-100 text-slate-500 rounded-xl px-3 py-2 text-xs border border-slate-200 animate-pulse">
-                  Thinking...
+                <div className="bg-slate-50 text-slate-500 rounded-2xl px-3.5 py-2 text-xs border border-slate-200/80 animate-pulse">
+                  Analyzing roadmap &amp; questions...
                 </div>
               </div>
             )}
@@ -247,15 +272,15 @@ export default function AiCopilot() {
               <input
                 ref={inputRef}
                 type="text"
-                placeholder="Ask about DSA, Redis, system design..."
+                placeholder="Ask about DSA complexities, Redis, React 19..."
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/15"
               />
               <button
                 type="submit"
                 disabled={loading || !input.trim()}
-                className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium transition cursor-pointer disabled:opacity-50"
+                className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold shadow-xs transition cursor-pointer disabled:opacity-50"
               >
                 Send
               </button>
