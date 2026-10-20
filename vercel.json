@@ -1,0 +1,7 @@
+{
+  "buildCommand": "cd client/devboard && npm install && npm run build",
+  "outputDirectory": "client/devboard/dist",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}
