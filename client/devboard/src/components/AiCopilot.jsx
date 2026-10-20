@@ -1,65 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-
-const getClientSideAnswer = (query) => {
-  const q = query.toLowerCase();
-
-  if (q.includes("dsa") || q.includes("pattern") || q.includes("leetcode") || q.includes("algorithm")) {
-    return `### 💡 Core DSA Patterns for Technical Interviews
-
-1. **Two Pointers & Sliding Window**
-   - *When to use*: Substring problems, sorted pair searches, subarray maximums.
-   - *Example*: \`Two Sum II\` (pointers at edges) vs \`Longest Substring Without Repeating Characters\` (expand right, contract left).
-
-2. **Trees & Graph Traversals**
-   - *When to use*: Hierarchical data, shortest path, connected components.
-   - *Rule of thumb*: BFS with a Queue for shortest path; DFS with recursion for depth, topological sort, and path validation.
-
-3. **Dynamic Programming**
-   - *Steps*: 1. Identify optimal substructure. 2. Define state \`dp[i]\`. 3. Write transition formula. 4. Determine base cases.
-   - *Optimization*: Many 1D/2D DP problems only need the last 1-2 state values (optimizing space from \`O(N)\` to \`O(1)\`).`;
-  }
-
-  if (q.includes("redis") || q.includes("cache")) {
-    return `### ⚡ Redis Cache-Aside Pattern Architecture
-
-1. **Read Path (Sub-5ms)**:
-   - Application queries Redis key (\`devboard:topics:id\`).
-   - **Cache HIT**: Return in < 5ms directly from memory.
-   - **Cache MISS**: Query PostgreSQL (Supabase), write response to Redis with TTL (e.g. 1 hour), and return.
-
-2. **Write / Invalidation Path**:
-   - When a resource is added or updated (\`POST /api/resources\`), immediately purge the affected Redis cache key.
-   - This prevents serving stale data while maintaining fast read throughput.`;
-  }
-
-  if (q.includes("react") || q.includes("frontend") || q.includes("action")) {
-    return `### ⚛️ React 19 & Modern State Architecture
-
-- **Server Actions & useActionState**: Manage async form submissions natively without manual \`loading\` or \`error\` states.
-- **useOptimistic**: Render instantaneous UI checkmarks or problem status changes while background network requests complete.
-- **Core Web Vitals**:
-  - **LCP**: Inline critical CSS, prioritize hero images with \`fetchpriority="high"\`.
-  - **INP**: Break up long JavaScript execution using \`requestAnimationFrame\` or microtasks.`;
-  }
-
-  if (q.includes("system design") || q.includes("rate limit") || q.includes("scale") || q.includes("mock")) {
-    return `### 🌐 System Design & Scalability Principles
-
-- **Rate Limiting**:
-  - *Token Bucket*: Best for handling bursts while maintaining steady consumption.
-  - *Distributed*: Use Redis Sorted Sets (\`ZSET\`) with current timestamp as score for atomic sliding window evaluation.
-- **Message Queues (Kafka / BullMQ)**:
-  - Decouple long-running tasks (e.g. report generation, image compression) from user-facing HTTP handlers.
-- **Database Sharding & Indexes**:
-  - Always index foreign keys and columns frequently used in \`WHERE\` and \`ORDER BY\` filters.`;
-  }
-
-  return `### 🎯 Strategy Recommendation
-
-- **Consistency**: Solving 1-2 problems daily with deep comprehension outperforms solving 20 problems without retention.
-- **Verbalize Trade-offs**: In interview settings, always state the brute-force time/space complexity first, then optimize.
-- **DevBoard Tracks**: Use the sections above to systematically cover DSA, Frontend, Backend, and System Design!`;
-};
+import { runAgentPrompt } from "../services/agentEngine";
 
 export default function AiCopilot() {
   const [isOpen, setIsOpen] = useState(false);
@@ -71,7 +11,13 @@ export default function AiCopilot() {
     return [
       {
         role: "assistant",
-        text: "👋 Hi! I am your **DevBoard Technical Coach**. I can help you analyze time complexities, master DSA patterns, or explain system design trade-offs. What are you working on today?",
+        text: "👋 Hi! I am the **DevBoard Autonomous Agent**. Unlike a generic chatbot, I have direct tool access to your learning database.\n\nI can create topics, add LeetCode problems, mark problems as solved, and analyze your preparation readiness.",
+        actionsTaken: [
+          {
+            tool: "inspectEnvironment",
+            args: { scope: "DevBoard PostgreSQL & LocalStore" },
+          },
+        ],
       },
     ];
   });
@@ -109,37 +55,23 @@ export default function AiCopilot() {
     setLoading(true);
 
     try {
-      const controller = new AbortController();
-      const id = setTimeout(() => controller.abort(), 1200);
+      // Execute through the Autonomous Agent Engine (with tool calling)
+      const agentResult = await runAgentPrompt(text);
 
-      const response = await fetch("http://localhost:5000/api/agent/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text }),
-        signal: controller.signal,
-      });
-      clearTimeout(id);
-
-      if (!response.ok) {
-        throw new Error("Backend offline");
-      }
-
-      const data = await response.json();
       setMessages((prev) => [
         ...prev,
         {
           role: "assistant",
-          text: data.reply || "Done!",
+          text: agentResult.reply,
+          actionsTaken: agentResult.actionsTaken || [],
         },
       ]);
-    } catch {
-      // Offline fallback: intelligent client-side technical coach
-      const reply = getClientSideAnswer(text);
+    } catch (err) {
       setMessages((prev) => [
         ...prev,
         {
           role: "assistant",
-          text: reply,
+          text: `Agent execution failed: ${err.message}`,
         },
       ]);
     } finally {
@@ -147,11 +79,11 @@ export default function AiCopilot() {
     }
   };
 
-  const quickPrompts = [
-    "Master DSA patterns",
-    "Explain Redis cache-aside",
-    "React 19 Server Actions",
-    "System design tips",
+  const agentActionPrompts = [
+    "Add 'Trapping Rain Water' (Hard) to Two Pointers",
+    "Mark Two Sum as Solved",
+    "Create topic 'System Design Patterns' under System Design",
+    "Analyze my roadmap progress",
   ];
 
   return (
@@ -161,32 +93,37 @@ export default function AiCopilot() {
         onClick={() => setIsOpen((prev) => !prev)}
         className="fixed bottom-6 right-6 z-40 flex items-center gap-2.5 px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-full shadow-lg hover:shadow-xl transition-all cursor-pointer text-xs font-semibold group"
       >
-        <span className="w-2 h-2 rounded-full bg-emerald-400 group-hover:scale-110 transition-transform" />
-        <span>Study Copilot</span>
+        <span className="w-2 h-2 rounded-full bg-emerald-400 group-hover:scale-110 transition-transform animate-pulse" />
+        <span>DevBoard Agent</span>
         {isOpen ? (
           <span className="text-[11px] text-slate-400 ml-1">✕</span>
         ) : (
-          <span className="text-[10px] text-slate-400 font-mono bg-slate-800 px-1.5 py-0.5 rounded">
-            AI
+          <span className="text-[10px] text-indigo-300 font-mono bg-slate-800 border border-slate-700 px-1.5 py-0.5 rounded">
+            ReAct
           </span>
         )}
       </button>
 
       {/* Chat Drawer Window */}
       {isOpen && (
-        <div className="fixed bottom-20 right-6 z-50 w-[400px] max-w-[calc(100vw-2rem)] h-[540px] max-h-[calc(100vh-7rem)] bg-white border border-slate-200 rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in duration-150">
+        <div className="fixed bottom-20 right-6 z-50 w-[420px] max-w-[calc(100vw-2rem)] h-[560px] max-h-[calc(100vh-7rem)] bg-white border border-slate-200 rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in duration-150">
           {/* Header */}
           <div className="px-4 py-3.5 border-b border-slate-100 bg-white flex items-center justify-between">
             <div className="flex items-center gap-2.5">
               <div className="w-7 h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-mono font-bold text-xs shadow-2xs">
-                &lt;C/&gt;
+                &lt;A/&gt;
               </div>
               <div>
-                <h3 className="font-bold text-slate-900 text-xs">
-                  DevBoard Copilot
-                </h3>
+                <div className="flex items-center gap-1.5">
+                  <h3 className="font-bold text-slate-900 text-xs">
+                    DevBoard Autonomous Agent
+                  </h3>
+                  <span className="text-[9px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-1.5 py-0.2 rounded-full">
+                    Tool Enabled
+                  </span>
+                </div>
                 <p className="text-[10px] text-slate-400">
-                  Technical Interview &amp; Roadmap Coach
+                  ReAct Multi-Turn Engine &bull; Direct Database Access
                 </p>
               </div>
             </div>
@@ -196,7 +133,13 @@ export default function AiCopilot() {
                   const reset = [
                     {
                       role: "assistant",
-                      text: "👋 Hi! I am your **DevBoard Technical Coach**. I can help you analyze time complexities, master DSA patterns, or explain system design trade-offs. What are you working on today?",
+                      text: "👋 Hi! I am the **DevBoard Autonomous Agent**. Unlike a generic chatbot, I have direct tool access to your learning database.\n\nI can create topics, add LeetCode problems, mark problems as solved, and analyze your preparation readiness.",
+                      actionsTaken: [
+                        {
+                          tool: "inspectEnvironment",
+                          args: { scope: "DevBoard PostgreSQL & LocalStore" },
+                        },
+                      ],
                     },
                   ];
                   setMessages(reset);
@@ -216,9 +159,9 @@ export default function AiCopilot() {
             </div>
           </div>
 
-          {/* Quick Suggestion Chips */}
+          {/* Agent Action Prompts */}
           <div className="px-3 py-2 bg-slate-50 border-b border-slate-100 flex gap-1.5 overflow-x-auto scrollbar-none">
-            {quickPrompts.map((p, idx) => (
+            {agentActionPrompts.map((p, idx) => (
               <button
                 key={idx}
                 onClick={() => handleSend(p)}
@@ -236,8 +179,35 @@ export default function AiCopilot() {
               return (
                 <div
                   key={idx}
-                  className={`flex ${isUser ? "justify-end" : "justify-start"}`}
+                  className={`flex flex-col ${
+                    isUser ? "items-end" : "items-start"
+                  }`}
                 >
+                  {/* Tool execution trace badge (if tool was invoked) */}
+                  {!isUser && m.actionsTaken && m.actionsTaken.length > 0 && (
+                    <div className="mb-1.5 max-w-[90%] p-2.5 rounded-xl bg-slate-100/90 border border-slate-200 text-[11px] font-mono text-slate-800 shadow-2xs">
+                      <div className="flex items-center justify-between mb-1 pb-1 border-b border-slate-200/60">
+                        <span className="font-bold text-indigo-700 flex items-center gap-1.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                          TOOL EXECUTION TRACE
+                        </span>
+                        <span className="text-[9px] text-slate-500 bg-white px-1.5 py-0.2 rounded border border-slate-200">
+                          ReAct
+                        </span>
+                      </div>
+                      {m.actionsTaken.map((act, i) => (
+                        <div key={i} className="text-[10px] text-slate-700 truncate">
+                          <span className="font-bold text-slate-900">tool:</span>{" "}
+                          <span className="text-indigo-600 font-semibold">{act.tool}</span>
+                          <span className="text-slate-500">
+                            ({JSON.stringify(act.args || {})})
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Message Bubble */}
                   <div
                     className={`max-w-[88%] rounded-2xl px-3.5 py-2.5 text-xs leading-relaxed whitespace-pre-wrap ${
                       isUser
@@ -252,8 +222,9 @@ export default function AiCopilot() {
             })}
             {loading && (
               <div className="flex justify-start">
-                <div className="bg-slate-50 text-slate-500 rounded-2xl px-3.5 py-2 text-xs border border-slate-200/80 animate-pulse">
-                  Analyzing roadmap &amp; questions...
+                <div className="bg-slate-50 text-slate-500 rounded-2xl px-3.5 py-2 text-xs border border-slate-200/80 animate-pulse flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-indigo-600 animate-ping" />
+                  <span>Agent reasoning &amp; evaluating tools...</span>
                 </div>
               </div>
             )}
@@ -272,7 +243,7 @@ export default function AiCopilot() {
               <input
                 ref={inputRef}
                 type="text"
-                placeholder="Ask about DSA complexities, Redis, React 19..."
+                placeholder="Instruct the agent (e.g. 'Add problem 3Sum' or 'Mark as solved')..."
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/15"
@@ -282,7 +253,7 @@ export default function AiCopilot() {
                 disabled={loading || !input.trim()}
                 className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold shadow-xs transition cursor-pointer disabled:opacity-50"
               >
-                Send
+                Execute
               </button>
             </form>
           </div>

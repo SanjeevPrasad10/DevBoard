@@ -101,6 +101,23 @@ const SectionPage = ({ searchQuery = "", currentUser }) => {
     initData();
   }, []);
 
+  // Sync state dynamically when the Autonomous Agent executes tool actions
+  useEffect(() => {
+    const handleAgentAction = async (e) => {
+      const { tool } = e.detail || {};
+      if (selectedTopic) {
+        await loadResourcesForTopic(selectedTopic.id);
+      }
+      if (tool === "addTopic" && selectedSection) {
+        await loadTopicsForSection(selectedSection.id);
+      }
+    };
+
+    window.addEventListener("devboard_agent_action", handleAgentAction);
+    return () =>
+      window.removeEventListener("devboard_agent_action", handleAgentAction);
+  }, [selectedTopic, selectedSection]);
+
   // When user clicks a section tab
   const handleSelectSection = async (sec) => {
     if (selectedSection?.id === sec.id) return;

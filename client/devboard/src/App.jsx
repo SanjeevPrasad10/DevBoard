@@ -64,7 +64,11 @@ function App() {
     };
 
     window.addEventListener("storage", handleStorageUpdate);
-    return () => window.removeEventListener("storage", handleStorageUpdate);
+    window.addEventListener("devboard_agent_action", handleStorageUpdate);
+    return () => {
+      window.removeEventListener("storage", handleStorageUpdate);
+      window.removeEventListener("devboard_agent_action", handleStorageUpdate);
+    };
   }, []);
 
   const handleUserSet = (user, isNew) => {
