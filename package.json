@@ -1,4 +1,9 @@
 {
+  "name": "devboard",
+  "private": true,
+  "scripts": {
+    "build": "cd client/devboard && npm install && npm run build"
+  },
   "dependencies": {
     "ioredis": "^6.0.0"
   }
