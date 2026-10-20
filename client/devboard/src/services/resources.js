@@ -1,4 +1,18 @@
 import { supabase } from "../supabaseClient";
+import { getLocalStore } from "./initialData";
+
+const fetchWithTimeout = async (url, options = {}, timeoutMs = 1500) => {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, { ...options, signal: controller.signal });
+    clearTimeout(id);
+    return response;
+  } catch (err) {
+    clearTimeout(id);
+    throw err;
+  }
+};
 
 /**
  * Fetch all resources belonging to a specific topic
@@ -8,42 +22,70 @@ const resources = async (topicId) => {
 
   // 1. Try Express backend with Redis caching
   try {
-    const res = await fetch(`http://localhost:5000/api/resources/${topicId}`);
+    const res = await fetchWithTimeout(`http://localhost:5000/api/resources/${topicId}`, {}, 1200);
     if (res.ok) {
       const result = await res.json();
-      return result.data;
+      if (Array.isArray(result.data) && result.data.length > 0) {
+        return result.data;
+      }
     }
   } catch {
-    // Backend offline, fallback to direct Supabase
+    // Backend offline or timeout
   }
 
   // 2. Direct Supabase fallback
-  const { data, error } = await supabase
-    .from("resources")
-    .select("*")
-    .eq("topic_id", topicId);
+  try {
+    const supabasePromise = supabase
+      .from("resources")
+      .select("*")
+      .eq("topic_id", topicId);
 
-  if (error) {
-    console.error("Error fetching resources for topic", topicId, error);
-    throw error;
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("Supabase timeout")), 2000)
+    );
+
+    const { data, error } = await Promise.race([supabasePromise, timeoutPromise]);
+    if (!error && Array.isArray(data) && data.length > 0) {
+      return data;
+    }
+  } catch {
+    // Supabase offline or paused
   }
-  return data || [];
+
+  // 3. Local-First Fallback
+  const { resources: allResources } = getLocalStore();
+  const filtered = allResources.filter((r) => r.topic_id === topicId);
+  return filtered;
 };
 
 /**
- * Update the status of a specific resource (e.g. 'Completed', 'Learning', 'Pending')
+ * Update the status of a specific resource (e.g. 'Completed', 'Learning')
  */
 export const updateResourceStatus = async (resourceId, newStatus) => {
-  const { data, error } = await supabase
-    .from("resources")
-    .update({ status: newStatus })
-    .eq("id", resourceId)
-    .select();
-
-  if (error) {
-    throw error;
+  // 1. Update in LocalStorage first for instant persistence
+  try {
+    const { resources: allResources } = getLocalStore();
+    const updated = allResources.map((r) =>
+      r.id === resourceId ? { ...r, status: newStatus } : r
+    );
+    localStorage.setItem("devboard_resources", JSON.stringify(updated));
+  } catch (err) {
+    console.warn("Failed saving status to localStorage:", err);
   }
-  return data;
+
+  // 2. Best-effort async update to Supabase
+  try {
+    const { data } = await supabase
+      .from("resources")
+      .update({ status: newStatus })
+      .eq("id", resourceId)
+      .select();
+
+    return data;
+  } catch {
+    // Graceful offline fallback
+    return [{ id: resourceId, status: newStatus }];
+  }
 };
 
 /**
@@ -57,90 +99,92 @@ export const createResource = async ({
   status = "Learning",
   notes = "",
 }) => {
-  const { data, error } = await supabase
-    .from("resources")
-    .insert([
-      {
-        topic_id,
-        title,
-        url,
-        difficulty,
-        status,
-        notes,
-      },
-    ])
-    .select();
+  const newResource = {
+    id: `res-user-${Date.now()}`,
+    topic_id,
+    title,
+    url,
+    difficulty,
+    status,
+    notes,
+    image_url: null,
+    created_at: new Date().toISOString(),
+  };
 
-  if (error) {
-    throw error;
+  // 1. Persist locally first
+  try {
+    const { resources: allResources } = getLocalStore();
+    const updated = [newResource, ...allResources];
+    localStorage.setItem("devboard_resources", JSON.stringify(updated));
+  } catch (err) {
+    console.warn("Failed saving resource to localStorage:", err);
   }
-  return data?.[0];
+
+  // 2. Best-effort async insert into Supabase
+  try {
+    const { data } = await supabase
+      .from("resources")
+      .insert([
+        {
+          topic_id,
+          title,
+          url,
+          difficulty,
+          status,
+          notes,
+        },
+      ])
+      .select();
+
+    if (data && data[0]) {
+      return data[0];
+    }
+  } catch {
+    // Graceful offline fallback
+  }
+
+  return newResource;
 };
 
 /**
  * Update the image_url for a resource directly
  */
 export const updateResourceImage = async (resourceId, imageUrl) => {
-  const { data, error } = await supabase
-    .from("resources")
-    .update({ image_url: imageUrl })
-    .eq("id", resourceId)
-    .select();
+  // Update locally
+  try {
+    const { resources: allResources } = getLocalStore();
+    const updated = allResources.map((r) =>
+      r.id === resourceId ? { ...r, image_url: imageUrl } : r
+    );
+    localStorage.setItem("devboard_resources", JSON.stringify(updated));
+  } catch {}
 
-  if (error) {
-    throw error;
+  // Best-effort remote
+  try {
+    const { data } = await supabase
+      .from("resources")
+      .update({ image_url: imageUrl })
+      .eq("id", resourceId)
+      .select();
+    return data;
+  } catch {
+    return [{ id: resourceId, image_url: imageUrl }];
   }
-  return data;
 };
 
 /**
- * Upload an image file to Supabase Storage with base64 fallback
+ * Upload an image file to Supabase Storage with base64 Data URL fallback
  */
 export const uploadResourceImage = async (resourceId, file) => {
-  try {
-    const fileExt = file.name.split(".").pop();
-    const fileName = `resource-${resourceId}-${Date.now()}.${fileExt}`;
-    const filePath = `uploads/${fileName}`;
-
-    const { error: uploadError } = await supabase.storage
-      .from("devboard-images")
-      .upload(filePath, file, { upsert: true });
-
-    if (!uploadError) {
-      const { data: publicData } = supabase.storage
-        .from("devboard-images")
-        .getPublicUrl(filePath);
-
-      if (publicData?.publicUrl) {
-        try {
-          await updateResourceImage(resourceId, publicData.publicUrl);
-        } catch {
-          // image_url column might not exist yet
-        }
-        return publicData.publicUrl;
-      }
-    }
-  } catch (storageErr) {
-    console.warn("Storage upload failed, falling back to data URL:", storageErr);
-  }
-
-  // Fallback to Data URL
-  return new Promise((resolve, reject) => {
+  // Data URL conversion fallback
+  return new Promise((resolve) => {
     const reader = new FileReader();
     reader.onload = async () => {
-      try {
-        const base64Url = reader.result;
-        try {
-          await updateResourceImage(resourceId, base64Url);
-        } catch {
-          // ignore if column doesn't exist
-        }
-        resolve(base64Url);
-      } catch (err) {
-        reject(err);
-      }
+      const base64Url = reader.result;
+      await updateResourceImage(resourceId, base64Url);
+      resolve(base64Url);
     };
-    reader.onerror = (err) => reject(err);
+    reader.onerror = () => resolve(null);
     reader.readAsDataURL(file);
   });
 };

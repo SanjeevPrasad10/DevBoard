@@ -63,7 +63,8 @@ const SectionPage = ({ searchQuery = "", currentUser }) => {
 
       if (topicData && topicData.length > 0) {
         const savedTopicId = localStorage.getItem("devboard_selected_topic_id");
-        const targetTopic = topicData.find((t) => t.id === savedTopicId) || topicData[0];
+        const targetTopic =
+          topicData.find((t) => t.id === savedTopicId) || topicData[0];
         setSelectedTopic(targetTopic);
         await loadResourcesForTopic(targetTopic.id);
       }
@@ -84,7 +85,8 @@ const SectionPage = ({ searchQuery = "", currentUser }) => {
 
         if (sectionData && sectionData.length > 0) {
           const savedSectionId = localStorage.getItem("devboard_selected_section_id");
-          const targetSection = sectionData.find((s) => s.id === savedSectionId) || sectionData[0];
+          const targetSection =
+            sectionData.find((s) => s.id === savedSectionId) || sectionData[0];
           setSelectedSection(targetSection);
           await loadTopicsForSection(targetSection.id);
         }
@@ -132,13 +134,7 @@ const SectionPage = ({ searchQuery = "", currentUser }) => {
     try {
       await updateResourceStatus(resource.id, nextStatus);
     } catch (err) {
-      console.error("Failed to update status in Supabase:", err);
-      // Revert if error
-      setResourcesList((prev) =>
-        prev.map((r) =>
-          r.id === resource.id ? { ...r, status: resource.status } : r
-        )
-      );
+      console.error("Failed to update status:", err);
     }
   };
 
@@ -168,13 +164,11 @@ const SectionPage = ({ searchQuery = "", currentUser }) => {
       });
 
       if (created) {
-        setResourcesList((prev) => [...prev, created]);
+        setResourcesList((prev) => [created, ...prev]);
       } else {
-        // Reload resources for fresh sync
         await loadResourcesForTopic(selectedTopic.id);
       }
 
-      // Reset form
       setNewTitle("");
       setNewUrl("");
       setNewDifficulty("Medium");
@@ -182,7 +176,6 @@ const SectionPage = ({ searchQuery = "", currentUser }) => {
       setIsAddModalOpen(false);
     } catch (err) {
       console.error("Failed to create resource:", err);
-      alert("Failed to add resource. Check database connection.");
     } finally {
       setIsSubmittingResource(false);
     }
@@ -235,49 +228,49 @@ const SectionPage = ({ searchQuery = "", currentUser }) => {
     totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
   return (
-    <div className="w-full max-w-7xl mx-auto px-4 sm:px-8 py-6">
-      {/* --- SECTIONS TOP BAR (TABS) --- */}
+    <div className="w-full max-w-7xl mx-auto px-4 sm:px-8">
+      {/* Sections Tab Bar */}
       <div className="mb-6">
-        <div className="flex items-center justify-between gap-4 mb-3">
+        <div className="flex items-center justify-between gap-4 mb-2.5">
           <div className="flex items-center gap-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
-              Roadmaps & Sections
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+              Learning Domains
             </span>
             {currentUser && (
-              <span className="text-xs text-indigo-400 font-medium">
-                • Workspace for {currentUser.name}
+              <span className="text-xs text-indigo-600 font-medium">
+                &bull; {currentUser.name}&apos;s Workspace
               </span>
             )}
           </div>
-          <span className="text-xs text-slate-500">
-            {sections.length} sections
+          <span className="text-xs text-slate-400">
+            {sections.length} domains
           </span>
         </div>
 
         {loadingSections ? (
-          <div className="flex gap-3 overflow-x-auto pb-2 animate-pulse">
+          <div className="flex gap-2.5 overflow-x-auto pb-2 animate-pulse">
             {[1, 2, 3, 4].map((i) => (
               <div
                 key={i}
-                className="h-10 w-28 bg-slate-800/80 rounded-xl shrink-0"
+                className="h-9 w-32 bg-slate-200 rounded-lg shrink-0"
               />
             ))}
           </div>
         ) : (
-          <div className="flex gap-2.5 overflow-x-auto pb-2 scrollbar-none">
+          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
             {sections.map((sec) => {
               const isActive = selectedSection?.id === sec.id;
               return (
                 <button
                   key={sec.id}
                   onClick={() => handleSelectSection(sec)}
-                  className={`px-4 py-2.5 rounded-xl font-semibold text-sm transition-all duration-200 shrink-0 cursor-pointer flex items-center gap-2 ${
+                  className={`px-3.5 py-2 rounded-lg text-xs font-medium transition-all shrink-0 cursor-pointer ${
                     isActive
-                      ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/30 scale-[1.02]"
-                      : "bg-slate-800/80 text-slate-300 hover:bg-slate-800 hover:text-white border border-slate-700/60"
+                      ? "bg-slate-900 text-white shadow-xs"
+                      : "bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200"
                   }`}
                 >
-                  <span>{sec.name}</span>
+                  {sec.name}
                 </button>
               );
             })}
@@ -285,16 +278,15 @@ const SectionPage = ({ searchQuery = "", currentUser }) => {
         )}
       </div>
 
-      {/* --- MAIN 2-COLUMN DASHBOARD --- */}
+      {/* Main Grid: Topics Sidebar + Resource Canvas */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* LEFT COLUMN: TOPICS SIDEBAR (4 cols) */}
-        <div className="lg:col-span-4 bg-slate-900/70 border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-sm">
-          <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-800">
-            <h3 className="font-bold text-base text-slate-200 flex items-center gap-2">
-              <span>📚</span>
-              <span>{selectedSection?.name || "Topics"}</span>
+        {/* Left Column: Topics Sidebar (4 cols) */}
+        <div className="lg:col-span-4 bg-white border border-slate-200 rounded-xl p-4 shadow-xs">
+          <div className="flex items-center justify-between mb-3 pb-3 border-b border-slate-100">
+            <h3 className="font-semibold text-sm text-slate-800">
+              {selectedSection?.name || "Topics"}
             </h3>
-            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-800 text-slate-400">
+            <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">
               {topics.length} topics
             </span>
           </div>
@@ -302,29 +294,29 @@ const SectionPage = ({ searchQuery = "", currentUser }) => {
           {loadingTopics ? (
             <div className="space-y-2 animate-pulse">
               {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="h-10 bg-slate-800/60 rounded-xl" />
+                <div key={i} className="h-9 bg-slate-100 rounded-lg" />
               ))}
             </div>
           ) : topics.length === 0 ? (
-            <div className="text-center py-8 text-slate-500 text-sm">
-              <p>No topics added to {selectedSection?.name || "this section"} yet.</p>
+            <div className="text-center py-8 text-slate-400 text-xs">
+              No topics found.
             </div>
           ) : (
-            <div className="space-y-1.5 max-h-[550px] overflow-y-auto pr-1">
+            <div className="space-y-1 max-h-[550px] overflow-y-auto pr-0.5">
               {topics.map((t) => {
                 const isSelected = selectedTopic?.id === t.id;
                 return (
                   <button
                     key={t.id}
                     onClick={() => handleSelectTopic(t)}
-                    className={`w-full text-left px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 flex items-center justify-between cursor-pointer ${
+                    className={`w-full text-left px-3 py-2 rounded-lg text-xs font-medium transition-colors flex items-center justify-between cursor-pointer ${
                       isSelected
-                        ? "bg-indigo-600/25 text-indigo-300 border border-indigo-500/50 font-semibold shadow-sm"
-                        : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
+                        ? "bg-indigo-50 text-indigo-700 font-semibold border border-indigo-200/80"
+                        : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
                     }`}
                   >
                     <span className="truncate">{t.name}</span>
-                    <span className="text-xs opacity-60">→</span>
+                    <span className="text-[10px] text-slate-400">&rarr;</span>
                   </button>
                 );
               })}
@@ -332,58 +324,56 @@ const SectionPage = ({ searchQuery = "", currentUser }) => {
           )}
         </div>
 
-        {/* RIGHT COLUMN: RESOURCES & PROBLEMS CANVAS (8 cols) */}
+        {/* Right Column: Resources Canvas (8 cols) */}
         <div className="lg:col-span-8 space-y-4">
-          {/* Header & Progress Banner */}
-          <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-5 shadow-sm">
+          {/* Header Card */}
+          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs">
             <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
               <div>
-                <span className="text-xs text-indigo-400 font-medium tracking-wide uppercase">
+                <span className="text-[11px] font-medium uppercase tracking-wider text-indigo-600">
                   {selectedSection?.name || "Section"}
                 </span>
-                <h2 className="text-2xl font-bold text-white tracking-tight">
+                <h2 className="text-lg font-bold text-slate-900 tracking-tight">
                   {selectedTopic?.name || "Select a Topic"}
                 </h2>
               </div>
 
-              {/* Add Resource Button */}
               {selectedTopic && (
                 <button
                   onClick={() => setIsAddModalOpen(true)}
-                  className="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold flex items-center gap-1.5 shadow-md shadow-indigo-600/30 transition cursor-pointer"
+                  className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium transition cursor-pointer shadow-xs"
                 >
-                  <span>+ Add Problem / Resource</span>
+                  + Add Resource
                 </button>
               )}
             </div>
 
-            {/* Dynamic Progress Bar */}
-            <div className="flex items-center justify-between gap-3 mb-1.5 text-xs text-slate-400">
-              <span>Topic Progress</span>
-              <span className="font-bold text-emerald-400">
-                {completedCount} / {totalCount} ({progressPercent}%)
+            {/* Progress Bar */}
+            <div className="flex items-center justify-between gap-3 mb-1 text-xs text-slate-500">
+              <span>Progress</span>
+              <span className="font-semibold text-slate-700">
+                {completedCount} of {totalCount} completed ({progressPercent}%)
               </span>
             </div>
-            <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+            <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
               <div
-                className="bg-gradient-to-r from-indigo-500 via-emerald-500 to-emerald-400 h-full rounded-full transition-all duration-500"
+                className="bg-indigo-600 h-full rounded-full transition-all duration-300"
                 style={{ width: `${progressPercent}%` }}
               />
             </div>
 
             {/* Filter Pills */}
-            <div className="flex flex-wrap items-center justify-between gap-3 mt-5 pt-4 border-t border-slate-800/80 text-xs">
-              {/* Difficulty Filter */}
+            <div className="flex flex-wrap items-center justify-between gap-3 mt-4 pt-3 border-t border-slate-100 text-xs">
               <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="text-slate-400 mr-1">Difficulty:</span>
+                <span className="text-slate-400 text-[11px] mr-1">Difficulty:</span>
                 {["All", "Easy", "Medium", "Hard"].map((diff) => (
                   <button
                     key={diff}
                     onClick={() => setDifficultyFilter(diff)}
-                    className={`px-2.5 py-1 rounded-lg font-medium transition cursor-pointer ${
+                    className={`px-2 py-0.5 rounded-md text-[11px] font-medium transition cursor-pointer ${
                       difficultyFilter === diff
-                        ? "bg-indigo-600 text-white"
-                        : "bg-slate-800 text-slate-400 hover:text-white"
+                        ? "bg-slate-900 text-white"
+                        : "bg-slate-100 text-slate-600 hover:text-slate-900"
                     }`}
                   >
                     {diff}
@@ -391,17 +381,16 @@ const SectionPage = ({ searchQuery = "", currentUser }) => {
                 ))}
               </div>
 
-              {/* Status Filter */}
               <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="text-slate-400 mr-1">Status:</span>
+                <span className="text-slate-400 text-[11px] mr-1">Status:</span>
                 {["All", "Pending", "Completed"].map((st) => (
                   <button
                     key={st}
                     onClick={() => setStatusFilter(st)}
-                    className={`px-2.5 py-1 rounded-lg font-medium transition cursor-pointer ${
+                    className={`px-2 py-0.5 rounded-md text-[11px] font-medium transition cursor-pointer ${
                       statusFilter === st
-                        ? "bg-indigo-600 text-white"
-                        : "bg-slate-800 text-slate-400 hover:text-white"
+                        ? "bg-slate-900 text-white"
+                        : "bg-slate-100 text-slate-600 hover:text-slate-900"
                     }`}
                   >
                     {st}
@@ -417,37 +406,36 @@ const SectionPage = ({ searchQuery = "", currentUser }) => {
               {[1, 2].map((i) => (
                 <div
                   key={i}
-                  className="h-24 bg-slate-800/60 rounded-2xl border border-slate-800"
+                  className="h-20 bg-white rounded-xl border border-slate-200"
                 />
               ))}
             </div>
           ) : !selectedTopic ? (
-            <div className="p-12 text-center bg-slate-900/40 border border-slate-800/60 rounded-2xl text-slate-400">
-              <span className="text-3xl block mb-2">👈</span>
-              <p className="font-semibold text-white mb-1">Select a Topic</p>
-              <p className="text-xs text-slate-500">
-                Choose a topic from the left sidebar to view its problems and
-                resources.
+            <div className="p-10 text-center bg-white border border-slate-200 rounded-xl text-slate-500">
+              <p className="font-medium text-slate-800 text-sm mb-1">
+                Select a Topic
+              </p>
+              <p className="text-xs text-slate-400">
+                Choose a topic from the left sidebar to view its problems and resources.
               </p>
             </div>
           ) : filteredResources.length === 0 ? (
-            <div className="p-12 text-center bg-slate-900/40 border border-slate-800/60 rounded-2xl text-slate-400">
-              <span className="text-3xl block mb-2">📝</span>
-              <p className="font-semibold text-white mb-1">
+            <div className="p-10 text-center bg-white border border-slate-200 rounded-xl text-slate-500">
+              <p className="font-medium text-slate-800 text-sm mb-1">
                 No resources in {selectedTopic.name}
               </p>
-              <p className="text-xs text-slate-500 mb-4">
-                Be the first to add a problem, documentation link, or study note!
+              <p className="text-xs text-slate-400 mb-3">
+                No problems or documentation found for this filter.
               </p>
               <button
                 onClick={() => setIsAddModalOpen(true)}
-                className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold cursor-pointer shadow-md"
+                className="px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium cursor-pointer"
               >
-                + Add First Resource
+                + Add Resource
               </button>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-2.5">
               {filteredResources.map((item) => (
                 <ResourceCard
                   key={item.id}
@@ -463,23 +451,23 @@ const SectionPage = ({ searchQuery = "", currentUser }) => {
 
       {/* Modal: Add New Resource */}
       {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-          <div className="relative w-full max-w-lg bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl p-6 text-white">
-            <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-800">
-              <h3 className="text-lg font-bold">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
+          <div className="relative w-full max-w-md bg-white border border-slate-200 rounded-xl shadow-xl p-5 text-slate-900">
+            <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-100">
+              <h3 className="text-sm font-semibold text-slate-900">
                 Add Resource to {selectedTopic?.name}
               </h3>
               <button
                 onClick={() => setIsAddModalOpen(false)}
-                className="text-slate-400 hover:text-white p-1 rounded-lg"
+                className="text-slate-400 hover:text-slate-600 p-1 text-sm rounded-md"
               >
                 ✕
               </button>
             </div>
 
-            <form onSubmit={handleCreateResource} className="space-y-4 text-xs">
+            <form onSubmit={handleCreateResource} className="space-y-3.5 text-xs">
               <div>
-                <label className="block font-medium text-slate-300 mb-1">
+                <label className="block font-medium text-slate-700 mb-1">
                   Title / Problem Name *
                 </label>
                 <input
@@ -488,12 +476,12 @@ const SectionPage = ({ searchQuery = "", currentUser }) => {
                   placeholder="e.g. Valid Anagram or React useEffect Guide"
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-white placeholder-slate-500 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-slate-900 placeholder-slate-400 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block font-medium text-slate-300 mb-1">
+                <label className="block font-medium text-slate-700 mb-1">
                   URL / Link (LeetCode, GitHub, Docs, etc.)
                 </label>
                 <input
@@ -501,18 +489,18 @@ const SectionPage = ({ searchQuery = "", currentUser }) => {
                   placeholder="https://leetcode.com/problems/..."
                   value={newUrl}
                   onChange={(e) => setNewUrl(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-white placeholder-slate-500 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-slate-900 placeholder-slate-400 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block font-medium text-slate-300 mb-1">
+                <label className="block font-medium text-slate-700 mb-1">
                   Difficulty
                 </label>
                 <select
                   value={newDifficulty}
                   onChange={(e) => setNewDifficulty(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-slate-900 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none"
                 >
                   <option value="Easy">Easy</option>
                   <option value="Medium">Medium</option>
@@ -521,30 +509,30 @@ const SectionPage = ({ searchQuery = "", currentUser }) => {
               </div>
 
               <div>
-                <label className="block font-medium text-slate-300 mb-1">
-                  Notes / Explanation / Approach
+                <label className="block font-medium text-slate-700 mb-1">
+                  Notes / Approach / Time Complexity
                 </label>
                 <textarea
                   rows={3}
-                  placeholder="Key observations, time complexity, or personal notes..."
+                  placeholder="Key observations, approach, or notes..."
                   value={newNotes}
                   onChange={(e) => setNewNotes(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-white placeholder-slate-500 focus:ring-2 focus:ring-indigo-500 focus:outline-none resize-none"
+                  className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-slate-900 placeholder-slate-400 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none resize-none"
                 />
               </div>
 
-              <div className="flex justify-end gap-2.5 pt-2">
+              <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setIsAddModalOpen(false)}
-                  className="px-4 py-2 rounded-xl text-slate-300 hover:bg-slate-800 border border-slate-700 transition cursor-pointer"
+                  className="px-3.5 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100 border border-slate-200 transition cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmittingResource || !newTitle.trim()}
-                  className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold transition cursor-pointer disabled:opacity-50"
+                  className="px-4 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-medium transition cursor-pointer disabled:opacity-50"
                 >
                   {isSubmittingResource ? "Saving..." : "Save Resource"}
                 </button>

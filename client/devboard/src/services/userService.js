@@ -1,10 +1,8 @@
 import { supabase } from "../supabaseClient";
 
 /**
- * Validate if a user exists by name in Supabase.
- * If exists: returns the existing user.
- * If not: inserts the new user into the database and returns it.
- * Falls back gracefully to localStorage if 'users' table is not yet created in Supabase.
+ * Validate or register a user by name.
+ * Checks Supabase if reachable (with 1.5s timeout), otherwise immediately persists in localStorage.
  */
 export const validateOrRegisterUser = async (name) => {
   const trimmedName = name.trim();
@@ -12,16 +10,24 @@ export const validateOrRegisterUser = async (name) => {
     throw new Error("Please enter a valid name.");
   }
 
-  // Check if we can query Supabase
+  // Check Supabase safely with timeout
   try {
-    const { data: existingUsers, error: selectError } = await supabase
+    const supabasePromise = supabase
       .from("users")
       .select("*")
       .ilike("name", trimmedName);
 
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("Supabase timeout")), 1200)
+    );
+
+    const { data: existingUsers, error: selectError } = await Promise.race([
+      supabasePromise,
+      timeoutPromise,
+    ]);
+
     if (!selectError && existingUsers) {
       if (existingUsers.length > 0) {
-        // User already exists in DB
         return { user: existingUsers[0], isNew: false };
       }
 
@@ -35,11 +41,11 @@ export const validateOrRegisterUser = async (name) => {
         return { user: newUser[0], isNew: true };
       }
     }
-  } catch (dbErr) {
-    console.warn("Supabase 'users' table not found, using localStorage:", dbErr);
+  } catch {
+    // Supabase offline, fallback cleanly to localStorage
   }
 
-  // Graceful Fallback: LocalStorage user storage
+  // Graceful LocalStorage user management
   const storageKey = `devboard_user_${trimmedName.toLowerCase()}`;
   const localData = localStorage.getItem(storageKey);
 
@@ -47,18 +53,15 @@ export const validateOrRegisterUser = async (name) => {
     try {
       const parsed = JSON.parse(localData);
       return { user: parsed, isNew: false };
-    } catch {
-      // ignore parse error
-    }
+    } catch {}
   }
 
   // Create new local user
   const newUser = {
-    id: `local_${Date.now()}`,
+    id: `user_${Date.now()}`,
     name: trimmedName,
     created_at: new Date().toISOString(),
   };
   localStorage.setItem(storageKey, JSON.stringify(newUser));
   return { user: newUser, isNew: true };
 };
-

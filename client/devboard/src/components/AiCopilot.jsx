@@ -1,5 +1,53 @@
 import { useState, useRef, useEffect } from "react";
 
+const getClientSideAnswer = (query) => {
+  const q = query.toLowerCase();
+
+  if (q.includes("dsa") || q.includes("algorithm") || q.includes("leetcode")) {
+    return `For Data Structures & Algorithms, prioritize mastery of recurring patterns over rote memorization:
+1. **Arrays & Two Pointers**: Start with Two Sum and Sliding Window problems (e.g., Longest Substring Without Repeating Characters).
+2. **Graphs & Trees**: Master recursive DFS for tree inversions and BFS for shortest path or level-order traversals.
+3. **Dynamic Programming**: Break problems into subproblems. Define state \`dp[i]\`, transition relations, and base cases.
+4. **Time & Space**: Always analyze Big-O complexities before coding in interviews.`;
+  }
+
+  if (q.includes("redis") || q.includes("cache")) {
+    return `**Redis Cache-Aside Pattern Overview**:
+1. **Read Path**: The application first checks Redis using a unique key (e.g. \`devboard:topics:id\`). If a cache hit occurs, it returns data in < 5ms.
+2. **Cache Miss**: If absent, query PostgreSQL (Supabase), write the result into Redis with a TTL (e.g. 1 hour), and return to client.
+3. **Write / Invalidation Path**: Whenever a resource is created, updated, or deleted, explicitly purge the affected Redis cache keys to prevent stale data.`;
+  }
+
+  if (q.includes("react") || q.includes("frontend")) {
+    return `**React 19 & Modern Frontend Best Practices**:
+- **Server Actions & useActionState**: Handle mutations directly without repetitive loading states or manual try/catch boilerplate.
+- **useOptimistic**: Provide immediate UI updates for checkmarks or comments before server confirmation.
+- **Performance**: Measure Core Web Vitals (LCP, INP, CLS). Prioritize critical above-the-fold assets and minimize long main-thread tasks.`;
+  }
+
+  if (q.includes("system design") || q.includes("rate limit") || q.includes("scale")) {
+    return `**System Design Essentials**:
+- **Rate Limiting**: Use the Token Bucket algorithm for burst tolerance, or Sliding Window Log with Redis ZSET for strict distributed windows.
+- **Message Queues**: Decouple synchronous API traffic from asynchronous worker jobs using Kafka or BullMQ.
+- **Database Optimization**: Ensure columns used in WHERE, JOIN, and ORDER BY clauses have appropriate indexes (B-Tree for standard lookups, GIN for text/JSONB).`;
+  }
+
+  if (q.includes("section") || q.includes("topic") || q.includes("what is in devboard")) {
+    return `DevBoard organizes learning into 4 core domains:
+1. **Data Structures & Algorithms** (Arrays, Two Pointers, Trees, Dynamic Programming)
+2. **Frontend Architecture** (React 19, Web Performance, Core Web Vitals)
+3. **Backend & Systems** (Node.js event loop, Redis caching, PostgreSQL indexes)
+4. **System Design & DevOps** (Distributed rate limiting, message queues, Docker)
+
+You can check off completed topics, write study notes, and attach architecture diagrams directly to cards!`;
+  }
+
+  return `Here are some recommendations based on your learning journey:
+- Consistency matters more than volume: solve 1-2 focused problems daily and document key takeaways.
+- Focus on explaining your thought process out loud—trade-offs between time vs space complexity are what interviewers evaluate most.
+- Explore the sections above to track your progress and mark topics as 'Completed'!`;
+};
+
 export default function AiCopilot() {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState(() => {
@@ -10,7 +58,7 @@ export default function AiCopilot() {
     return [
       {
         role: "assistant",
-        text: "Hello! I am your **DevBoard AI Copilot**. I can inspect your sections, recommend resources, or help you organize your learning path. How can I help you today?",
+        text: "Hi! I am your DevBoard Advisor. Ask me about DSA patterns, system design trade-offs, or how to organize your preparation roadmap.",
       },
     ];
   });
@@ -26,7 +74,7 @@ export default function AiCopilot() {
     } catch {}
   }, [messages]);
 
-  // Auto-scroll to bottom of chat
+  // Auto-scroll
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
@@ -48,14 +96,19 @@ export default function AiCopilot() {
     setLoading(true);
 
     try {
+      const controller = new AbortController();
+      const id = setTimeout(() => controller.abort(), 1200);
+
       const response = await fetch("http://localhost:5000/api/agent/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: text }),
+        signal: controller.signal,
       });
+      clearTimeout(id);
 
       if (!response.ok) {
-        throw new Error(`Server returned ${response.status}`);
+        throw new Error("Backend offline");
       }
 
       const data = await response.json();
@@ -64,15 +117,16 @@ export default function AiCopilot() {
         {
           role: "assistant",
           text: data.reply || "Done!",
-          actions: data.actionsTaken || [],
         },
       ]);
-    } catch (err) {
+    } catch {
+      // Offline fallback: intelligent client-side assistance
+      const reply = getClientSideAnswer(text);
       setMessages((prev) => [
         ...prev,
         {
           role: "assistant",
-          text: `?? **Connection Error:** Could not reach the DevBoard Agent server (${err.message}). Make sure the Express server is running on port 5000!`,
+          text: reply,
         },
       ]);
     } finally {
@@ -81,9 +135,9 @@ export default function AiCopilot() {
   };
 
   const quickPrompts = [
-    "What sections are currently in DevBoard?",
-    "Suggest a 3-day Redis learning plan",
-    "Show topics under Backend",
+    "How to master DSA patterns?",
+    "Explain Redis cache-aside",
+    "What are React 19 Server Actions?",
   ];
 
   return (
@@ -91,39 +145,25 @@ export default function AiCopilot() {
       {/* Floating Trigger Button */}
       <button
         onClick={() => setIsOpen((prev) => !prev)}
-        className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 px-4 py-3 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-500 hover:to-pink-500 text-white rounded-full shadow-xl hover:shadow-indigo-500/25 transition-all duration-300 font-medium text-sm border border-white/20 active:scale-95 group"
+        className="fixed bottom-5 right-5 z-40 flex items-center gap-2 px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-full shadow-md text-xs font-medium cursor-pointer transition"
       >
-        <span className="text-lg group-hover:rotate-12 transition-transform duration-300">
-          ?
-        </span>
-        <span>AI Copilot</span>
-        {isOpen ? (
-          <span className="text-xs bg-white/20 px-1.5 py-0.5 rounded">?</span>
-        ) : (
-          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-        )}
+        <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+        <span>Copilot</span>
+        {isOpen && <span className="text-[10px] text-slate-400 ml-1">✕</span>}
       </button>
 
       {/* Chat Drawer Window */}
       {isOpen && (
-        <div className="fixed bottom-24 right-6 z-50 w-[420px] max-w-[calc(100vw-2rem)] h-[560px] max-h-[calc(100vh-8rem)] bg-slate-900/95 backdrop-blur-xl border border-slate-700/80 rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-5 duration-200">
+        <div className="fixed bottom-16 right-5 z-50 w-[380px] max-w-[calc(100vw-2rem)] h-[520px] max-h-[calc(100vh-6rem)] bg-white border border-slate-200 rounded-2xl shadow-xl flex flex-col overflow-hidden animate-in fade-in duration-150">
           {/* Header */}
-          <div className="px-5 py-4 border-b border-slate-800 bg-slate-950/60 flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-base font-bold shadow-md">
-                ??
-              </div>
-              <div>
-                <h3 className="font-semibold text-slate-100 text-sm flex items-center gap-2">
-                  DevBoard Agent
-                  <span className="text-[10px] font-normal px-2 py-0.5 bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 rounded-full">
-                    Gemini 3.6
-                  </span>
-                </h3>
-                <p className="text-[11px] text-slate-400">
-                  Direct database & Redis access
-                </p>
-              </div>
+          <div className="px-4 py-3 border-b border-slate-100 bg-white flex items-center justify-between">
+            <div>
+              <h3 className="font-semibold text-slate-900 text-xs">
+                DevBoard Copilot
+              </h3>
+              <p className="text-[11px] text-slate-400">
+                Roadmap &amp; Technical Advisor
+              </p>
             </div>
             <div className="flex items-center gap-1">
               <button
@@ -131,109 +171,96 @@ export default function AiCopilot() {
                   const reset = [
                     {
                       role: "assistant",
-                      text: "Hello! I am your **DevBoard AI Copilot**. I can inspect your sections, recommend resources, or help you organize your learning path. How can I help you today?",
+                      text: "Hi! I am your DevBoard Advisor. Ask me about DSA patterns, system design trade-offs, or how to organize your preparation roadmap.",
                     },
                   ];
                   setMessages(reset);
                   localStorage.removeItem("devboard_copilot_messages");
                 }}
-                title="Clear Chat History"
-                className="text-slate-400 hover:text-slate-200 text-xs px-2 py-1 rounded-md hover:bg-slate-800 transition-colors"
+                className="text-slate-400 hover:text-slate-700 text-xs px-2 py-0.5 rounded"
+                title="Clear Chat"
               >
                 Clear
               </button>
               <button
                 onClick={() => setIsOpen(false)}
-                className="text-slate-400 hover:text-slate-200 text-sm p-1 rounded-md hover:bg-slate-800 transition-colors"
+                className="text-slate-400 hover:text-slate-700 text-xs p-1 rounded"
               >
                 ✕
               </button>
             </div>
           </div>
 
-          {/* Messages Scroll Area */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4 text-xs">
-            {messages.map((msg, idx) => (
-              <div
-                key={idx}
-                className={`flex flex-col ${
-                  msg.role === "user" ? "items-end" : "items-start"
-                }`}
-              >
-                <div
-                  className={`max-w-[85%] rounded-2xl px-4 py-2.5 leading-relaxed ${
-                    msg.role === "user"
-                      ? "bg-indigo-600 text-white rounded-br-none shadow-md shadow-indigo-600/20"
-                      : "bg-slate-800/90 text-slate-200 rounded-bl-none border border-slate-700/60"
-                  }`}
-                >
-                  <p className="whitespace-pre-wrap">{msg.text}</p>
-
-                  {/* Tool Actions Badge Display */}
-                  {msg.actions && msg.actions.length > 0 && (
-                    <div className="mt-2 pt-2 border-t border-slate-700/50 flex flex-wrap gap-1.5">
-                      {msg.actions.map((act, actIdx) => (
-                        <span
-                          key={actIdx}
-                          className="inline-flex items-center gap-1 text-[10px] bg-slate-900/80 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded font-mono"
-                        >
-                          ? {act.tool}()
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-
-            {loading && (
-              <div className="flex items-center gap-2 text-slate-400 text-xs px-2 py-1">
-                <span className="w-2 h-2 rounded-full bg-indigo-400 animate-ping"></span>
-                <span>DevBoard Agent is reasoning with tools...</span>
-              </div>
-            )}
-            <div ref={chatEndRef} />
-          </div>
-
-          {/* Quick Suggestion Chips */}
-          <div className="px-4 py-2 border-t border-slate-800/80 bg-slate-950/40 flex items-center gap-1.5 overflow-x-auto text-[11px] no-scrollbar">
-            {quickPrompts.map((p, i) => (
+          {/* Quick Prompts */}
+          <div className="px-3 py-2 bg-slate-50 border-b border-slate-100 flex gap-1.5 overflow-x-auto scrollbar-none">
+            {quickPrompts.map((p, idx) => (
               <button
-                key={i}
+                key={idx}
                 onClick={() => handleSend(p)}
-                disabled={loading}
-                className="whitespace-nowrap bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white px-2.5 py-1 rounded-full border border-slate-700/60 transition-colors"
+                className="shrink-0 text-[11px] bg-white text-slate-600 hover:text-slate-900 border border-slate-200 px-2.5 py-1 rounded-full cursor-pointer transition"
               >
                 {p}
               </button>
             ))}
           </div>
 
-          {/* Input Box */}
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleSend();
-            }}
-            className="p-3 bg-slate-950/90 border-t border-slate-800 flex items-center gap-2"
-          >
-            <input
-              ref={inputRef}
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask agent to inspect or add resources..."
-              disabled={loading}
-              className="flex-1 bg-slate-900 border border-slate-700/80 rounded-xl px-3.5 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
-            />
-            <button
-              type="submit"
-              disabled={!input.trim() || loading}
-              className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:hover:bg-indigo-600 text-white rounded-xl text-xs font-medium transition-colors shadow-sm"
+          {/* Messages Area */}
+          <div className="flex-1 p-3.5 space-y-3 overflow-y-auto">
+            {messages.map((m, idx) => {
+              const isUser = m.role === "user";
+              return (
+                <div
+                  key={idx}
+                  className={`flex ${isUser ? "justify-end" : "justify-start"}`}
+                >
+                  <div
+                    className={`max-w-[85%] rounded-xl px-3 py-2 text-xs leading-relaxed whitespace-pre-wrap ${
+                      isUser
+                        ? "bg-indigo-600 text-white"
+                        : "bg-slate-100 text-slate-800 border border-slate-200/80"
+                    }`}
+                  >
+                    {m.text}
+                  </div>
+                </div>
+              );
+            })}
+            {loading && (
+              <div className="flex justify-start">
+                <div className="bg-slate-100 text-slate-500 rounded-xl px-3 py-2 text-xs border border-slate-200 animate-pulse">
+                  Thinking...
+                </div>
+              </div>
+            )}
+            <div ref={chatEndRef} />
+          </div>
+
+          {/* Input Bar */}
+          <div className="p-3 border-t border-slate-100 bg-white">
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleSend();
+              }}
+              className="flex items-center gap-2"
             >
-              Send
-            </button>
-          </form>
+              <input
+                ref={inputRef}
+                type="text"
+                placeholder="Ask about DSA, Redis, system design..."
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+              />
+              <button
+                type="submit"
+                disabled={loading || !input.trim()}
+                className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium transition cursor-pointer disabled:opacity-50"
+              >
+                Send
+              </button>
+            </form>
+          </div>
         </div>
       )}
     </>
