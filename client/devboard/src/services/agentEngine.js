@@ -418,6 +418,35 @@ export const runAgentPrompt = async (userPrompt) => {
     };
   }
 
+  // Intent: Attempting a destructive action (Delete / Drop / Purge)
+  if (
+    lower.startsWith("delete") ||
+    lower.startsWith("remove") ||
+    lower.startsWith("drop") ||
+    lower.includes("wipe") ||
+    lower.includes("clear all")
+  ) {
+    const toolCall = {
+      tool: "securityGuardrail",
+      args: {
+        attemptedAction: p,
+        policy: "DENY_DESTRUCTIVE_UNPRIVILEGED",
+      },
+    };
+    actionsTaken.push({
+      ...toolCall,
+      result: {
+        allowed: false,
+        reason: "Destructive deletion operations are restricted by security policy to prevent accidental data loss or prompt injection.",
+      },
+    });
+
+    return {
+      reply: `🛡️ **Security Policy Enforcement**: Deleting entire learning domains or wiping data via the AI Agent is **blocked** to protect your roadmap against accidental data loss or prompt injection attacks.\n\nTo modify or manage your tracks safely, you can ask me to:\n- *"Mark [Problem Title] as Solved or In Progress"*\n- *"Add new problems or topics"*\n- Or use the manual controls on the dashboard.`,
+      actionsTaken,
+    };
+  }
+
   // Default: General knowledge / Interview coaching query
   const toolCall = { tool: "getSections", args: {} };
   const secResult = await executeAgentTool(toolCall.tool, toolCall.args);
@@ -428,3 +457,4 @@ export const runAgentPrompt = async (userPrompt) => {
     actionsTaken,
   };
 };
+
